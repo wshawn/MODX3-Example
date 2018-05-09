@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE model>
+<model package="\SanityLLC\Example\Test" baseClass="xPDO\Om\xPDOObject" platform="mysql" defaultEngine="MyISAM" version="3.0" subpackage="subPack">
+
+    <object class="Organization" table="organization" extends="xPDO\Om\xPDOSimpleObject">
+        <field key="name" dbtype="varchar" precision="128" phptype="string" default="The name of the organization." />
+        <field key="rank" dbtype="varchar" precision="4" phptype="string" default="" comment="The rank of the organization when inserted." />
+
+        <index alias="name" name="name" primary="false" unique="false" type="BTREE">
+            <column key="name" length="" collation="A" null="false" />
+        </index>
+
+        <composite alias="Execs" class="OrganizationExec" local="id" foreign="orgId" cardinality="many" owner="local" comment="Executives of Fortune xxx Organizations" />
+    </object>
+
+    <object class="OrganizationExec" table="organization_exec" extends="xPDO\Om\xPDOSimpleObject">
+        <field key="name" dbtype="varchar" precision="128" phptype="string" null="false" />
+        <field key="orgId" dbtype="integer" precision="10" phptype="integer" attributes="unsigned" default="0" comment="Primary Key of organization" />
+        <field key="positionId" dbtype="integer" precision="5" phptype="integer" attributes="unsigned" default="0" comment="Primary Key of position" />
+
+        <index alias="name" name="name" primary="false" unique="false" type="BTREE" comment="Set to false as a C-level exec may work for multiple organizations or hold multiple positions within one org.">
+            <column key="name" length="" collation="A" null="false" />
+        </index>
+        <index alias="orgId" name="orgId" primary="false" unique="false" type="BTREE">
+            <column key="orgId" length="" collation="A" null="false" />
+        </index>
+        <index alias="positionId" name="positionId" primary="false" unique="false" type="BTREE">
+            <column key="positionId" length="" collation="A" null="false" />
+        </index>
+
+        <aggregate alias="Org" class="Organization" local="orgId" foreign="id" cardinality="one" owner="foreign" />
+        <aggregate alias="Position" class="OrganizationExecPosition" local="positionId" foreign="id" cardinality="one" owner="foreign" />
+    </object>
+
+    <object class="OrganizationExecPosition" table="organization_exec_position" extends="xPDO\Om\xPDOSimpleObject">
+        <field key="name" dbtype="varchar" precision="50" phptype="string" default="" />
+        <index alias="name" name="name" primary="false" unique="false" type="BTREE">
+            <column key="name" length="" collation="A" null="false" />
+        </index>
+
+        <aggregate alias="Execs" class="OrganizationExec" local="id" foreign="positionId" cardinality="many" owner="foreign" />
+    </object>
+
+    <object class="Log" table="log" extends="xPDO\Om\xPDOSimpleObject">
+        <field key="class" dbtype="varchar" precision="35" phptype="string" default="" comment="Name of the Class performing action" />
+        <field key="action" dbtype="varchar" precision="35" phptype="string" default="" comment="Name of the function performing action" />
+        <field key="status" dbtype="tinyint" precision="1" attributes="unsigned" phptype="boolean" default="0" comment="Successful or not" />
+        <field key="comment" dbtype="varchar" precision="100" phptype="string" default="Message from action" />
+        <field key="userId" dbtype="integer" precision="10" phptype="integer" attributes="unsigned" default="0" comment="Primary Key of modUser performing action" />
+        <field key="timestamp" dbtype="datetime" phptype="datetime" default="0000-00-00 00:00:00" />
+        <field key="ipaddress" dbtype="varbinary" precision="16" phptype="string" default="" comment="IP Address of user performing action" />
+
+        <index alias="action" name="action" primary="false" unique="false" type="BTREE">
+            <column key="action" length="" collation="A" null="false" />
+        </index>
+        <index alias="userId" name="userId" primary="false" unique="false" type="BTREE">
+            <column key="userId" length="" collation="A" null="false" />
+        </index>
+        <aggregate alias="User" class="modUser" local="userId" foreign="id" cardinality="one" owner="foreign" />
+    </object>
+</model>
