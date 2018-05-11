@@ -13,9 +13,10 @@ namespace SanityLLC\Example;
 
 use SanityLLC\Example\Test\Log;
 use xPDO\Om\xPDOObject;
-use xPDO\xPDOException;
 use xPDO\xPDO;
 use \Exception;
+use xPDO\xPDOException;
+
 
 define('MIN_PHP_VERSION', '7.0.0');
 define('MIN_MODX_VERSION', '3.0.0');
@@ -26,7 +27,7 @@ define('MIN_MODX_VERSION', '3.0.0');
  * This is the main file to include in your scripts to use SexiPhd xPDO Version.
  *
  * @package Example
- * User: W. Shawn Wilkerson
+ * User: W. Shawn Wilkerson *
  * Date: 3/17/2018
  * Time: 9:40
  * @version 1.0.0-alpha
@@ -56,47 +57,44 @@ class M3
 
     /**
      * Main constructor for the Class
-     *
+     * @throws \Exception If MODX is not installed.
      * @param \modX $modx A reference to the current modx Object.
      */
     public function __construct(\modX &$modx)
     {
         try {
             /* Check PHP version - must be at least version 7.0.0*/
-            if (version_compare(phpversion(), MIN_PHP_VERSION) === -1) {
+            if (version_compare(MIN_PHP_VERSION, phpversion(), '>')) {
                 throw new Exception('PHP version ' . MIN_PHP_VERSION . " or higher required. System running:" . phpversion());
             }
             /* Validate MODX */
             if (!is_object($modx) || (!$modx instanceof \modX)) {
                 throw new Exception("MODX CMS required and was not found. Please install version 3 or higher.");
             } else {
-                try {
-                    /* Check MODX version */
-                    $modx->getVersionData();
-                    if (version_compare($modx->version['full_version'], MIN_MODX_VERSION, '>=')) {
-                        throw new xPDOException('MODX version ' . MIN_MODX_VERSION . ' or higher required. Version: ' . $modx->version['full_version']);
-                    } else {
-                        /** The MODX object. */
-                        $this->modx = &$modx;
+                /* Check MODX version */
+                $modx->getVersionData();
+                if (version_compare(MIN_MODX_VERSION, $modx->version['full_version'], '>')) {
+                    $modx->sendError('unavailable',
+                        array('error_message' => 'MODX version ' . MIN_MODX_VERSION . ' or higher required. Version: ' . $modx->version['full_version']));
+                } else {
+                    /** The MODX object. */
+                    $this->modx = &$modx;
 
-                        /** The current MODX Revolution User */
-                        $this->user = $this->modx->user;
+                    /** The current MODX Revolution User */
+                    $this->user = $this->modx->user;
 
-                        /* Initialize the configuration */
-                        $this->setConfig();
+                    /* Initialize the configuration */
+                    $this->setConfig();
 
-                        /* Set the package */
-                        if (!$this->modx->setPackage($this->package, $this->config['modelPath'], $this->prefix)) {
-                            throw new xPDOException('Package ' . $this->package . ' not found at:' . $this->config['modelPath']);
-                        }
+                    /* Set the package */
+                    if (!$this->modx->setPackage($this->package, $this->config['modelPath'], $this->prefix)) {
+                        $this->modx->sendError('unavailable',
+                            ['error_message' => 'Package ' . $this->package . ' not found at:' . $this->config['modelPath']]);
                     }
-                    /* Handle exceptions when MODX is installed */
-                } catch (xPDOException $xe) {
-                    $this->modx->sendError('unavailable', array('error_message' => $xe->getMessage()));
                 }
             }
+        } catch (\Exception $e) {
             /* Handle exceptions when MODX is not installed or available. */
-        } catch (Exception $e) {
             echo 'Message: ' . $e->getMessage();
         }
     }
@@ -110,7 +108,6 @@ class M3
         $assetsUrl = str_replace('\\', '/', $assetsPath);
         $herePath = dirname(__FILE__) . DIRECTORY_SEPARATOR;
         $corePath = str_replace('\\', '/', $herePath);
-        unset ($assetsPath, $herePath);
 
         $this->config = array_merge($config, array(
             'assetsUrl' => $assetsUrl,
@@ -126,6 +123,8 @@ class M3
             'processorsPath' => $corePath . 'processors/',
             'snippetsPath' => $corePath . 'elements/snippets',
         ));
+
+        unset ($assetsPath, $assetsUrl, $herePath, $corePath);
     }
 
     /**
@@ -148,10 +147,9 @@ class M3
      * @see  xPDOObject::fromArray()
      * @return null|\xPDOObject
      */
-    private function createNewSchemaObject(string $name = '', array $parameters = array()): ? xPDOObject
+    private function createNewSchemaObject(string $name = '', array $parameters = array()): ?xPDOObject
     {
         $obj = null;
-
 
         try {
             if (!in_array($name, $this->getSchemaObjectNames())) {
@@ -159,7 +157,7 @@ class M3
             } else {
                 $obj = $this->modx->newObject($this->packageNamespace . $name, $parameters);
                 if (!is_object($obj) || !$obj instanceof xPDOObject) {
-                    throw new xPDOException('Logging system not found');
+                    throw new xPDOException('Object ' . $name . ' not created.');
                 }
             }
         } catch (xPDOException $xe) {
@@ -172,11 +170,10 @@ class M3
     /**
      * Shortcut version to create the platform class files that keeps files from being overwritten and destroyed.
      *
-     * @param int $withNamespace Processes each class with using namespace - the package name in lowercase; 0=no, 1=yes [default].
      * @uses parsePackageSchema()
      * @return bool Whether or not the schema was refreshed.
      */
-    public function createPackageSchema(int $withNamespace = 1): bool
+    public function createPackageSchema(): bool
     {
         $schemaObjects = $this->getSchemaObjectNames();
         try {
@@ -188,7 +185,7 @@ class M3
                 if (is_object($testObj) && $testObj instanceof \xPDOObject) {
                     throw new xPDOException('Schema has already been parsed.');
                 } else {
-                    $success = $this->parsePackageSchema(false, 0, 0, $withNamespace);
+                    $success = $this->parsePackageSchema(false, 0, 0);
                 }
             }
         } catch (xPDOException $xe) {
@@ -276,11 +273,9 @@ class M3
     }
 
     /**
-     * Creates an Event log of Activity.
+     * Creates an Event log.
      *
-     * Additional information to placed in the log entry.
-     * Whether or not execution succeeded
-     *
+     * @uses \SanityLLC\SexiPhd\Research\Log
      * @param bool $status
      *            true on success || false on failure
      * @param string $comment
@@ -288,52 +283,14 @@ class M3
      *
      * @return boolean true on success || false on failure
      */
-    public function logEvent($status = false, $comment = '')
+    public function logEvent(bool $status = false, string $comment = ''): bool
     {
-        $trace = $this->modx->getDebugBacktrace();
-        $ipaddress = $this->getClientIpAddress();
         $parameters = array(
-            'class' => $trace[1]['class'],
-            'action' => $trace[1]['function'],
-            'status' => $status,
-            'comment' => $comment,
-            'clientid' => $this->user->getPrimaryKey(),
-            'timestamp' => time(),
-            'ipaddress' => ($ipaddress) ? inet_pton($ipaddress) : ''
-        );
-
-        $obj = $this->createNewSchemaObject('Log', $parameters);
-        return $obj->save();
-    }
-
-    /**
-     * Creates an Event log of activity without using MODx 3.
-     *
-     * Additional information to placed in the log entry.
-     * Whether or not execution succeeded
-     *
-     * @param bool $status
-     *            true on success || false on failure
-     * @param string $comment
-     *            Text related to the action
-     *
-     * @return boolean true on success || false on failure
-     */
-    public function logEventNoModx($status = false, $comment = '')
-    {
-        $trace = $this->modx->getDebugBacktrace();
-        $ipaddress = $this->getClientIpAddress();
-        $parameters = array(
-            'class' => $trace[1]['class'],
-            'action' => $trace[1]['function'],
             'status' => (bool)$status,
             'comment' => (string)$comment,
-            'clientid' => (int)$this->user->getPrimaryKey(),
-            'timestamp' => time(),
-            'ipaddress' => ($ipaddress) ? inet_pton($ipaddress) : ''
+            'userId' => (int)$this->user->getPrimaryKey(),
         );
-
-        $obj = new Log($this->modx);
+        $obj = new \SanityLLC\SexiPhd\Research\Log($this->modx);
         $obj->fromArray($parameters);
         return $obj->save();
     }
@@ -347,25 +304,15 @@ class M3
      * @param bool $compile Compile multiple packages into a single file for quicker loading. Defaults to false as we only have a single package.
      * @param int $regenerate Indicates if existing class files should be regenerated; 0=no [default], 1=regenerate platform classes, 2=regenerate all classes.
      * @param int $update Indicates if existing class files should be updated; 0=no, 1=update platform classes, 2=update all classes [default].
-     * @param int $withNamespace Processes each class with using namespace - the package name in lowercase; 0=no, 1=yes [default].
      *
      * @see \xPDO\Om\xPDOGenerator::parseSchema()
      * @see \xPDO\Om\xPDOGenerator::outputClasses()
-     *
-     *
+     * @throws \xPDO\xPDOException
      * @return bool Whether or not the schema was parsed.
      */
-    private function parsePackageSchema($compile = false, $regenerate = 0, $update = 2, $withNamespace = 1): bool
+    private function parsePackageSchema($compile = false, $regenerate = 0, $update = 2): bool
     {
-        $options = array(
-            'compile' => $compile,
-            'namespacePrefix' => __NAMESPACE__,
-            'outputDir' => $this->config['modelPath'] . $this->package,
-            'regenerate' => $regenerate,
-            'update' => $update,
-            'withNamespace' => $withNamespace
-        );
-
+        $success = false;
         $this->modx->setLogTarget(php_sapi_name() === 'cli' ? 'ECHO' : 'HTML');
         $this->modx->setLogLevel(xPDO::LOG_LEVEL_INFO);
         $manager = $this->modx->getManager();
@@ -384,28 +331,35 @@ class M3
                 throw new xPDOException($schemaFile . ' does not appear to be xml.');
             }
 
-            if (!$generator->parseSchema($schemaFile, $this->config['modelPath'], $options)) {
-                throw new xPDOException('Package ' . $this->package . ' not found at:' . $this->config['modelPath']);
-            }
+            $options = array(
+                'compile' => $compile,
+                'namespacePrefix' => __NAMESPACE__,
+                'outputDir' => $this->config['modelPath'] . $this->package,
+                'regenerate' => $regenerate,
+                'update' => $update,
+                'withNamespace' => 1
+            );
+
+            $success = !$generator->parseSchema($schemaFile, $this->config['modelPath'], $options);
+
         } catch (xPDOException $xe) {
             $this->modx->sendError('unavailable', array('error_message' => $xe->getMessage()));
         }
 
         /* Parse Schema */
-        return true;
+        return $success;
     }
 
     /**
      * Shortcut version to refresh the platform class files.
      *
-     * @param int $withNamespace Processes each class with using namespace - the package name in lowercase; 0=no, 1=yes [default].
-     *
-     * @uses sexiphd::parsePackageSchema()
+     * @uses parsePackageSchema()
+     * @throws xPDOException
      * @return bool Whether or not the schema was refreshed.
      */
-    public function refreshPackageSchema($withNamespace = 1): bool
+    public function refreshPackageSchema(): bool
     {
-        return $this->parsePackageSchema(false, 1, 1, $withNamespace);
+        return $this->parsePackageSchema(false, 1, 1);
     }
 
     /**
@@ -413,7 +367,7 @@ class M3
      *
      * @return bool Whether or not database tables were created for all the schema objects.
      */
-    public function removePackageTables(bool $useNamespace = true): bool
+    public function removePackageTables(): bool
     {
         $out = false;
         try {
