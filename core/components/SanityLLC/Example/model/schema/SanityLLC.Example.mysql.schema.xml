@@ -3,14 +3,13 @@
 <model package="\SanityLLC\Example\Test" baseClass="xPDO\Om\xPDOObject" platform="mysql" defaultEngine="MyISAM" version="3.0" subpackage="subPack">
 
     <object class="Organization" table="organization" extends="xPDO\Om\xPDOSimpleObject">
-        <field key="name" dbtype="varchar" precision="128" phptype="string" default="The name of the organization." />
+        <field key="name" dbtype="varchar" precision="128" phptype="string" default="" comment="The name of the organization." />
         <field key="rank" dbtype="varchar" precision="4" phptype="string" default="" comment="The rank of the organization when inserted." />
 
         <index alias="name" name="name" primary="false" unique="false" type="BTREE">
             <column key="name" length="" collation="A" null="false" />
         </index>
-
-        <composite alias="Execs" class="OrganizationExec" local="id" foreign="orgId" cardinality="many" owner="local" comment="Executives of Fortune xxx Organizations" />
+        <composite alias="Execs" class="SanityLLC\Example\Test\OrganizationExec" local="id" foreign="orgId" cardinality="many" owner="local" />
     </object>
 
     <object class="OrganizationExec" table="organization_exec" extends="xPDO\Om\xPDOSimpleObject">
@@ -28,8 +27,8 @@
             <column key="positionId" length="" collation="A" null="false" />
         </index>
 
-        <aggregate alias="Org" class="Organization" local="orgId" foreign="id" cardinality="one" owner="foreign" />
-        <aggregate alias="Position" class="OrganizationExecPosition" local="positionId" foreign="id" cardinality="one" owner="foreign" />
+        <aggregate alias="Org" class="SanityLLC\Example\Test\Organization" local="orgId" foreign="id" cardinality="one" owner="foreign" />
+        <aggregate alias="Position" class="SanityLLC\Example\Test\OrganizationExecPosition" local="positionId" foreign="id" cardinality="one" owner="foreign" />
     </object>
 
     <object class="OrganizationExecPosition" table="organization_exec_position" extends="xPDO\Om\xPDOSimpleObject">
@@ -38,7 +37,7 @@
             <column key="name" length="" collation="A" null="false" />
         </index>
 
-        <aggregate alias="Execs" class="OrganizationExec" local="id" foreign="positionId" cardinality="many" owner="foreign" />
+        <aggregate alias="Execs" class="SanityLLC\Example\Test\OrganizationExec" local="id" foreign="positionId" cardinality="many" owner="foreign" />
     </object>
 
     <object class="Log" table="log" extends="xPDO\Om\xPDOSimpleObject">

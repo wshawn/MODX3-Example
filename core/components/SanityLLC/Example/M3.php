@@ -12,14 +12,14 @@
 namespace SanityLLC\Example;
 
 use SanityLLC\Example\Test\Log;
-use xPDO\Om\xPDOObject;
-use xPDO\xPDO;
 use \Exception;
+use xPDO\xPDO;
 use xPDO\xPDOException;
+use xPDO\Om\xPDOObject;
 
 
 define('MIN_PHP_VERSION', '7.0.0');
-define('MIN_MODX_VERSION', '3.0.0');
+define('MIN_MODX_VERSION', '3.0.0-dev');
 
 /**
  * Modx3Example xPDO Version
@@ -147,23 +147,17 @@ class M3
      * @see  xPDOObject::fromArray()
      * @return null|\xPDOObject
      */
-    private function createNewSchemaObject(string $name = '', array $parameters = array()): ?xPDOObject
+    public function createNewSchemaObject(string $name = '', array $parameters = array()): ?xPDOObject
     {
         $obj = null;
-
-        try {
-            if (!in_array($name, $this->getSchemaObjectNames())) {
-                throw new xPDOException($name . ' not permitted');
-            } else {
-                $obj = $this->modx->newObject($this->packageNamespace . $name, $parameters);
-                if (!is_object($obj) || !$obj instanceof xPDOObject) {
-                    throw new xPDOException('Object ' . $name . ' not created.');
-                }
+        if (!in_array($name, $this->getSchemaObjectNames())) {
+            $this->logEvent(false, $name . ' not permitted');
+        } else {
+            $obj = $this->modx->newObject($this->packageNamespace . $name, $parameters);
+            if (!is_object($obj) || !$obj instanceof xPDOObject) {
+                $this->logEvent(false, 'Object ' . $name . ' not created . ');
             }
-        } catch (xPDOException $xe) {
-            $this->modx->sendError('unavailable', array('error_message' => $xe->getMessage()));
         }
-
         return $obj;
     }
 
@@ -257,6 +251,26 @@ class M3
     }
 
     /**
+     * Retrieves a schema object from the database table.
+     * @param string $name The name of the object to retrieve.
+     * @param array $parameters The parameters sent to xPDOObject::FromArray
+     * @uses getSchemaObjectNames()
+     * @see  xPDOObject::fromArray()
+     * @return null|\xPDOObject
+     * @throws xPDOException
+     */
+    public function getSchemaObject(string $name = '', array $parameters = array()): ?xPDOObject
+    {
+        $obj = null;
+        if (!in_array($name, $this->getSchemaObjectNames())) {
+            $this->logEvent(false, $name . ' not permitted');
+        } else {
+            $obj = $this->modx->getObject($this->packageNamespace . $name, $parameters);
+        }
+        return $obj;
+    }
+
+    /**
      * Retrieves an array of the object names defined in the schema, without namespace..
      * Note: this list must be manually updated and match schema definitions for
      * all subsequent usage to function properly.
@@ -290,7 +304,7 @@ class M3
             'comment' => (string)$comment,
             'userId' => (int)$this->user->getPrimaryKey(),
         );
-        $obj = new \SanityLLC\SexiPhd\Research\Log($this->modx);
+        $obj = new Log ($this->modx);
         $obj->fromArray($parameters);
         return $obj->save();
     }
@@ -315,10 +329,6 @@ class M3
         $success = false;
         $this->modx->setLogTarget(php_sapi_name() === 'cli' ? 'ECHO' : 'HTML');
         $this->modx->setLogLevel(xPDO::LOG_LEVEL_INFO);
-        $manager = $this->modx->getManager();
-        $manager->getGenerator();
-        $generator = $manager->generator;
-
         try {
             $schemaFile = $this->config['modelPath'] . 'schema' . DIRECTORY_SEPARATOR . $this->schemaFileName . '.' . $this->modx->config['dbtype'] . '.schema.xml';
 
@@ -340,6 +350,9 @@ class M3
                 'withNamespace' => 1
             );
 
+            $manager = $this->modx->getManager();
+            $manager->getGenerator();
+            $generator = $manager->generator;
             $success = !$generator->parseSchema($schemaFile, $this->config['modelPath'], $options);
 
         } catch (xPDOException $xe) {
@@ -357,7 +370,7 @@ class M3
      * @throws xPDOException
      * @return bool Whether or not the schema was refreshed.
      */
-    public function refreshPackageSchema(): bool
+    public function refreshPackageSchemaPlatformFiles(): bool
     {
         return $this->parsePackageSchema(false, 1, 1);
     }
